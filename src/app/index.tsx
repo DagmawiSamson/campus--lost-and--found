@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
@@ -9,6 +9,52 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+async function itemsRequest(path: string, options: RequestInit = {}) {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase settings. Check your .env file.');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl.trim().replace(/\/$/, '')}/rest/v1/items${path}`,
+      {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          apikey: supabaseKey.trim(),
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `Request failed: ${response.status}`);
+    }
+
+    return data;
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        'Supabase took too long to respond. Check your internet and Project URL.'
+      );
+    }
+
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 type Item = {
   id: string;
@@ -23,22 +69,69 @@ export default function HomeScreen() {
   const [status, setStatus] = useState<'Lost' | 'Found'>('Lost');
   const [items, setItems] = useState<Item[]>([]);
 
-  function addItem() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function loadItems() {
+    setLoading(true);
+    setError('');
+
+    try {
+      const savedItems: Item[] = await itemsRequest(
+        '?select=id,name,location,status&order=created_at.desc&limit=100'
+      );
+      setItems(savedItems);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not load posts.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadItems();
+  }, []);
+
+  async function addItem() {
+    if (saving) return;
+
     if (!name.trim() || !location.trim()) {
       Alert.alert('Missing information', 'Enter an item and a location.');
       return;
     }
 
-    const newItem: Item = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      location: location.trim(),
-      status,
-    };
+    setSaving(true);
+    setError('');
 
-    setItems((previousItems) => [newItem, ...previousItems]);
-    setName('');
-    setLocation('');
+    try {
+      const savedItems: Item[] = await itemsRequest('', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          location: location.trim(),
+          status,
+        }),
+      });
+
+      const savedItem = savedItems[0];
+
+      setItems((previousItems) => [
+        savedItem,
+        ...previousItems.filter((item) => item.id !== savedItem.id),
+      ]);
+
+      setName('');
+      setLocation('');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not save your post.'
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -87,7 +180,28 @@ export default function HomeScreen() {
               />
             </View>
 
-            <Button title="Add item" onPress={addItem} />
+            <Text style={{ color: 'black' }}>
+              Loading: {String(loading)} | Saving: {String(saving)}
+            </Text>
+
+            <Button
+              title={saving ? 'Saving...' : 'Add item'}
+              onPress={addItem}
+              disabled={saving || loading}
+            />
+
+            
+            
+
+            <Button
+              title={loading ? 'Loading...' : 'Refresh posts'}
+              onPress={loadItems}
+              disabled={loading || saving}
+            />
+
+            {error ? (
+              <Text style={{ color: '#b91c1c' }}>{error}</Text>
+            ) : null}
 
             <Text style={styles.sectionTitle}>Recent posts</Text>
           </View>
