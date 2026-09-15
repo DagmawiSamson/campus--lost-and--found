@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { Button, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimatedIcon } from '@/components/animated-icon';
@@ -29,13 +30,22 @@ function getDevMenuHint() {
 }
 
 export default function HomeScreen() {
+  const [count, setCount] = useState(0);
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.heroSection}>
           <AnimatedIcon />
+
+          <ThemedText>Times tapped: {count}</ThemedText>
+
+          <Button
+            title="Tap me"
+            onPress={() => setCount(count + 1)}
+          />
+
           <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+            Hello, Dagmawi Begashaw
           </ThemedText>
         </ThemedView>
 
