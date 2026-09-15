@@ -1,108 +1,179 @@
-import * as Device from 'expo-device';
 import { useState } from 'react';
-import { Button, Platform, StyleSheet } from 'react-native';
+import {
+  Alert,
+  Button,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+type Item = {
+  id: string;
+  name: string;
+  location: string;
+  status: 'Lost' | 'Found';
+};
 
 export default function HomeScreen() {
-  const [count, setCount] = useState(0);
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
+  const [status, setStatus] = useState<'Lost' | 'Found'>('Lost');
+  const [items, setItems] = useState<Item[]>([]);
+
+  function addItem() {
+    if (!name.trim() || !location.trim()) {
+      Alert.alert('Missing information', 'Enter an item and a location.');
+      return;
+    }
+
+    const newItem: Item = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      location: location.trim(),
+      status,
+    };
+
+    setItems((previousItems) => [newItem, ...previousItems]);
+    setName('');
+    setLocation('');
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <View style={styles.form}>
+            <Text style={styles.title}>Campus Lost & Found</Text>
+            <Text style={styles.subtitle}>
+              Help someone find what they’re missing.
+            </Text>
 
-          <ThemedText>Times tapped: {count}</ThemedText>
+            <Text style={styles.label}>Item name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Example: Blue water bottle"
+              placeholderTextColor="#64748b"
+              value={name}
+              onChangeText={setName}
+              maxLength={100}
+            />
 
-          <Button
-            title="Tap me"
-            onPress={() => setCount(count + 1)}
-          />
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Example: Library, second floor"
+              placeholderTextColor="#64748b"
+              value={location}
+              onChangeText={setLocation}
+              maxLength={200}
+            />
 
-          <ThemedText type="title" style={styles.title}>
-            Hello, Dagmawi Begashaw
-          </ThemedText>
-        </ThemedView>
+            <Text style={styles.label}>What happened?</Text>
+            <View style={styles.buttons}>
+              <Button
+                title={status === 'Lost' ? '✓ Lost' : 'Lost'}
+                onPress={() => setStatus('Lost')}
+              />
+              <Button
+                title={status === 'Found' ? '✓ Found' : 'Found'}
+                onPress={() => setStatus('Found')}
+              />
+            </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+            <Button title="Add item" onPress={addItem} />
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+            <Text style={styles.sectionTitle}>Recent posts</Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <Text style={styles.subtitle}>
+            No posts yet. Add the first item above.
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.badge}>{item.status}</Text>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.location}>{item.location}</Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+  content: {
+    padding: 20,
+    paddingBottom: 100,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  form: {
+    gap: 12,
+    marginBottom: 16,
   },
   title: {
-    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#0f172a',
   },
-  code: {
-    textTransform: 'uppercase',
+  subtitle: {
+    fontSize: 16,
+    color: '#475569',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  buttons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sectionTitle: {
+    marginTop: 20,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 6,
+  },
+  badge: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1d4ed8',
+  },
+  itemName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  location: {
+    fontSize: 16,
+    color: '#475569',
   },
 });
