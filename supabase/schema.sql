@@ -18,6 +18,9 @@ revoke all on table public.items from anon, authenticated;
 grant select, insert on table public.items
   to anon, authenticated;
 
+grant delete on table public.items
+  to anon, authenticated;
+
 create policy "Anyone can read posts"
   on public.items
   for select
@@ -29,5 +32,11 @@ create policy "Anyone can add posts"
   for insert
   to anon, authenticated
   with check (true);
+
+create policy "Anyone can delete posts"
+  on public.items
+  for delete
+  to anon, authenticated
+  using (true);
 
 commit;
